@@ -175,7 +175,7 @@ void lexicalAnalyzer(char* input) {
         case '\t':
         case '\n':
 
-            // Ignore whitespace
+            // Ignore whitespacegir
             i++;
             break;
 
