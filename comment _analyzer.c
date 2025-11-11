@@ -20,7 +20,7 @@ void lexicalAnalyzer(char *input) {
             /* ## line comment */
             if (i + 1 < len && input[i + 1] == '#') {
                 /* recognize the delimiter */
-                printf("Token: SL_COMMENT, Lexeme: \n");
+                printf("Token: SL_COMMENT, Lexeme: ##");
                 i += 2; /* consume '##' */
                 while (i < len && input[i] != '\n') i++;
                 if (i < len && input[i] == '\n') i++;  /* consume newline */
@@ -29,7 +29,7 @@ void lexicalAnalyzer(char *input) {
 
             /* #* block comment start */
             if (i + 1 < len && input[i + 1] == '*') {
-                printf("Token: SML_COMMENT, Lexeme: \n");
+                printf("Token: SML_COMMENT, Lexeme: #*");
                 i += 2; /* consume '#*' */
 
                 int closed = 0;
@@ -37,7 +37,7 @@ void lexicalAnalyzer(char *input) {
                 while (i < len) {
                     if (input[i] == '*' && (i + 1 < len) && input[i + 1] == '#') {
                         /* recognize end delimiter */
-                        printf("Token: EML_COMMENT, Lexeme: \n");
+                        printf("Token: EML_COMMENT, Lexeme: *#");
                         i += 2; /* consume '*#' */
                         closed = 1;
                         break;
@@ -75,3 +75,4 @@ int main(void) {
     lexicalAnalyzer(code);
     return 0;
 }
+
