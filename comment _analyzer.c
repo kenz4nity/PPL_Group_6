@@ -2,8 +2,10 @@
 #include <string.h>
 
 /* Treat comments as WHITESPACE with blank lexeme.
-   Line comment:  ## ... (ends at newline)
-   Block comment: #* ... *#
+   Emit a token for each delimiter:
+     ##  -> SL_COMMENT
+     #*  -> SML_COMMENT (start of multi-line)
+     *#  -> EML_COMMENT (end of multi-line)
 */
 
 void lexicalAnalyzer(char *input) {
@@ -17,33 +19,45 @@ void lexicalAnalyzer(char *input) {
         case '#': {
             /* ## line comment */
             if (i + 1 < len && input[i + 1] == '#') {
-                i += 2;                         /* consume '##' */
+                /* recognize the delimiter */
+                printf("Token: SL_COMMENT, Lexeme: \n");
+                i += 2; /* consume '##' */
                 while (i < len && input[i] != '\n') i++;
-                printf("Token: WHITESPACE, Lexeme: \n");
                 if (i < len && input[i] == '\n') i++;  /* consume newline */
                 break;
             }
-            /* #* block comment ... *# */
+
+            /* #* block comment start */
             if (i + 1 < len && input[i + 1] == '*') {
-                i += 2;/* consume '#*' */
+                printf("Token: SML_COMMENT, Lexeme: \n");
+                i += 2; /* consume '#*' */
+
+                int closed = 0;
+                /* skip everything until '*#' */
                 while (i < len) {
                     if (input[i] == '*' && (i + 1 < len) && input[i + 1] == '#') {
+                        /* recognize end delimiter */
+                        printf("Token: EML_COMMENT, Lexeme: \n");
                         i += 2; /* consume '*#' */
+                        closed = 1;
                         break;
                     }
                     i++;
                 }
-                printf("Token: WHITESPACE, Lexeme: \n");
+                if (!closed) {
+                    /* Unterminated block comment at EOF */
+                    fprintf(stderr, "Warning: Unterminated block comment (missing '*#')\n");
+                }
                 break;
             }
 
-            /* Lone '#' (not a comment by the rules): skip one char */
+            /* Lone '#' (not a comment delimiter by these rules): skip one char */
             i++;
             break;
         }
 
         default:
-            /* Not a comment start: skip */
+            /* Not a comment start: skip this character */
             i++;
             break;
         }
@@ -55,8 +69,7 @@ int main(void) {
         "x = 1; ## line comment here\n"
         "y = 2; #* block comment\n"
         "spans lines *# z = 3;\n"
-        "## another one\n"
-        "edge cases: # alone, * alone, #* unterminated at EOF maybe";
+        "## another one\n";
 
     printf("Analyzing sample input:\n%s\n\n", code);
     lexicalAnalyzer(code);
