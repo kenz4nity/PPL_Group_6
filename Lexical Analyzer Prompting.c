@@ -4,6 +4,7 @@
 #include <stdbool.h> // For bool type
 #include <stdlib.h>  // For exit()
 
+
 // --- NEW: Logic from Keyword.c ---
 // Define all states with meaningful names
 enum States {
@@ -323,24 +324,22 @@ const char* key_word(const char* word) {
  *
  * This single function implements the complete DFA.
  */
-void lexicalAnalyzer(char* input) {
+void lexicalAnalyzer(char* word) {
     int i = 0;
-    int len = (int)strlen(input);
-
-    printf("\n--- Lexical Analysis Start ---\n");
+    int len = (int)strlen(word);
 
     while (i < len) {
-        char currentChar = input[i];
+        char currentChar = word[i];
 
         // This switch statement handles the transitions from the START state
         switch (currentChar) {
 
             // --- Logic from operationSymbol.c ---
         case '+':
-            if (i + 1 < len && input[i + 1] == '+') {
+            if (i + 1 < len && word[i + 1] == '+') {
                 printf("Token: ARITHMETIC_OP, Lexeme: ++\n"); i += 2;
             }
-            else if (i + 1 < len && input[i + 1] == '=') {
+            else if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: ASSIGNMENT_OP, Lexeme: +=\n"); i += 2;
             }
             else {
@@ -348,10 +347,10 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '-':
-            if (i + 1 < len && input[i + 1] == '-') {
+            if (i + 1 < len && word[i + 1] == '-') {
                 printf("Token: ARITHMETIC_OP, Lexeme: --\n"); i += 2;
             }
-            else if (i + 1 < len && input[i + 1] == '=') {
+            else if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: ASSIGNMENT_OP, Lexeme: -=\n"); i += 2;
             }
             else {
@@ -360,14 +359,14 @@ void lexicalAnalyzer(char* input) {
             break;
         case '*':
             // Check for multi-line comment end first
-            if (i + 1 < len && input[i + 1] == '#') {
+            if (i + 1 < len && word[i + 1] == '#') {
                 printf("Token: EML_COMMENT, Lexeme: *#\n");
                 i += 2; // This is technically part of comment logic
             }
-            else if (i + 1 < len && input[i + 1] == '=') {
+            else if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: ASSIGNMENT_OP, Lexeme: *=\n"); i += 2;
             }
-            else if (i + 1 < len && input[i + 1] == '*') {
+            else if (i + 1 < len && word[i + 1] == '*') {
                 printf("Token: EXPONENT_OP, Lexeme: **\n"); i += 2;
             }
             else {
@@ -375,7 +374,7 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '/':
-            if (i + 1 < len && input[i + 1] == '=') {
+            if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: ASSIGNMENT_OP, Lexeme: /=\n"); i += 2;
             }
             else {
@@ -383,7 +382,7 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '%':
-            if (i + 1 < len && input[i + 1] == '=') {
+            if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: ASSIGNMENT_OP, Lexeme: %%=\n"); i += 2;
             }
             else {
@@ -391,7 +390,7 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '<':
-            if (i + 1 < len && input[i + 1] == '=') {
+            if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: RELATIONAL_OP, Lexeme: <=\n"); i += 2;
             }
             else {
@@ -399,7 +398,7 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '>':
-            if (i + 1 < len && input[i + 1] == '=') {
+            if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: RELATIONAL_OP, Lexeme: >=\n"); i += 2;
             }
             else {
@@ -407,7 +406,7 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '=':
-            if (i + 1 < len && input[i + 1] == '=') {
+            if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: RELATIONAL_OP, Lexeme: ==\n"); i += 2;
             }
             else {
@@ -415,7 +414,7 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '!':
-            if (i + 1 < len && input[i + 1] == '=') {
+            if (i + 1 < len && word[i + 1] == '=') {
                 printf("Token: RELATIONAL_OP, Lexeme: !=\n"); i += 2;
             }
             else {
@@ -423,7 +422,7 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '&':
-            if (i + 1 < len && input[i + 1] == '&') {
+            if (i + 1 < len && word[i + 1] == '&') {
                 printf("Token: LOGICAL_OP, Lexeme: &&\n"); i += 2;
             }
             else {
@@ -431,7 +430,7 @@ void lexicalAnalyzer(char* input) {
             }
             break;
         case '|':
-            if (i + 1 < len && input[i + 1] == '|') {
+            if (i + 1 < len && word[i + 1] == '|') {
                 printf("Token: LOGICAL_OP, Lexeme: ||\n"); i += 2;
             }
             else {
@@ -441,17 +440,17 @@ void lexicalAnalyzer(char* input) {
 
             // --- Logic from comment_analyzer.c ---
         case '#':
-            if (i + 1 < len && input[i + 1] == '#') { // ## line comment
+            if (i + 1 < len && word[i + 1] == '#') { // ## line comment
                 printf("Token: SL_COMMENT, Lexeme: ##\n");
                 i += 2; // consume '##'
-                while (i < len && input[i] != '\n') i++; // skip to end of line
+                while (i < len && word[i] != '\n') i++; // skip to end of line
                 // The '\n' will be skipped by the whitespace case
             }
-            else if (i + 1 < len && input[i + 1] == '*') { // #* block comment start
+            else if (i + 1 < len && word[i + 1] == '*') { // #* block comment start
                 printf("Token: SML_COMMENT, Lexeme: #*\n");
                 i += 2; // consume '#*'
                 // Loop until we find '*#' or EOF
-                while (i < len - 1 && (input[i] != '*' || input[i + 1] != '#')) {
+                while (i < len - 1 && (word[i] != '*' || word[i + 1] != '#')) {
                     i++;
                 }
                 if (i >= len - 1) {
@@ -503,21 +502,21 @@ void lexicalAnalyzer(char* input) {
         case '"': {
             char lexeme[100];
             int k = 0;
-            lexeme[k++] = input[i++]; // Add the opening "
-            while (i < len && input[i] != '"') {
-                lexeme[k++] = input[i++];
+            lexeme[k++] = word[i++]; // Add the opening "
+            while (i < len && word[i] != '"') {
+                lexeme[k++] = word[i++];
             }
-            if (i < len && input[i] == '"') {
-                lexeme[k++] = input[i++]; // Add the closing "
+            if (i < len && word[i] == '"') {
+                lexeme[k++] = word[i++]; // Add the closing "
             }
             lexeme[k] = '\0';
             printf("Token: CONSTANT, Lexeme: %s\n", lexeme);
             break;
         }
         case '\'': {
-            if (i + 2 < len && input[i + 2] == '\'') {
+            if (i + 2 < len && word[i + 2] == '\'') {
                 printf("Token: CONSTANT, Lexeme: '");
-                putchar(input[i + 1]); // Print the char inside
+                putchar(word[i + 1]); // Print the char inside
                 printf("'\n");
                 i += 3; // Skip over the 'c'
             }
@@ -540,8 +539,8 @@ void lexicalAnalyzer(char* input) {
             if (isdigit(currentChar)) {
                 char lexeme[100];
                 int k = 0;
-                while (i < len && (isdigit(input[i]) || input[i] == '.')) {
-                    lexeme[k++] = input[i++];
+                while (i < len && (isdigit(word[i]) || word[i] == '.')) {
+                    lexeme[k++] = word[i++];
                 }
                 lexeme[k] = '\0';
                 printf("Token: CONSTANT, Lexeme: %s\n", lexeme);
@@ -550,8 +549,8 @@ void lexicalAnalyzer(char* input) {
             else if (isalpha(currentChar)) {
                 char lexeme[100];
                 int k = 0;
-                while (i < len && isalnum(input[i])) {
-                    lexeme[k++] = input[i++];
+                while (i < len && isalnum(word[i])) {
+                    lexeme[k++] = word[i++];
                 }
                 lexeme[k] = '\0';
 
@@ -563,8 +562,21 @@ void lexicalAnalyzer(char* input) {
                     printf("Token: KEYWORD, Lexeme: %s\n", lexeme);
                 }
                 else {
-                    // It's "Invalid" (an identifier), so treat it as CONSTANT
-                    printf("Token: CONSTANT, Lexeme: %s\n", lexeme);
+                    if (!isalpha(word[0]) && word[0] != '_') {
+                        printf("Token: UNKNOWN_TOKEN, Lexeme: %s\n", word);
+                    } else {
+                        int valid = 1;
+                        for (int i = 1; word[i] != '\0'; i++) {
+                            if (!isalnum(word[i]) && word[i] != '_') {
+                                valid = 0;
+                                break;
+                            }
+                        }
+
+                        if (valid)
+                            printf("Token: IDENTIFIER, Lexeme: %s\n", word);
+                    }
+
                 }
             }
             // Otherwise, it's an unknown symbol
@@ -575,35 +587,34 @@ void lexicalAnalyzer(char* input) {
             break;
         }
     }
-    printf("--- Lexical Analysis End ---\n");
 }
 
 
-// --- Main function that prompts the user for input ---
-int main() {
-    char inputBuffer[1024];
+// --- Main function that prompts the user for word ---
+/* int main() {
+    char wordBuffer[1024];
 
     printf("=== C-Language Lexical Analyzer ===\n");
     printf("Enter code to analyze. Type 'exit' to quit.\n");
 
-    // Loop forever to get user input
+    // Loop forever to get user word
     while (1) {
         printf("\n> "); // Prompt
 
-        // Get a line of input from the user
-        if (fgets(inputBuffer, sizeof(inputBuffer), stdin) == NULL) {
+        // Get a line of word from the user
+        if (fgets(wordBuffer, sizeof(wordBuffer), stdin) == NULL) {
             break; // Exit on EOF (Ctrl+D)
         }
 
         // Check if the user wants to exit
-        if (strcmp(inputBuffer, "exit\n") == 0) {
+        if (strcmp(wordBuffer, "exit\n") == 0) {
             printf("Exiting analyzer. Goodbye!\n");
             break; // Exit the loop
         }
 
-        // Run the synchronized analyzer on the user's input
-        lexicalAnalyzer(inputBuffer);
+        // Run the synchronized analyzer on the user's word
+        lexicalAnalyzer(wordBuffer);
     }
 
     return 0;
-}
+} */

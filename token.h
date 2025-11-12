@@ -1,7 +1,6 @@
 #ifndef TOKEN_H
 #define TOKEN_H
 
-
 typedef enum tokenType {
     IDENTIFIER,
     OPERATION,
