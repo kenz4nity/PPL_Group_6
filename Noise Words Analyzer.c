@@ -1,6 +1,6 @@
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h> /
+#include <ctype.h> 
 
 // 1. Define the list of "Noise Words" (Keywords)
 const char* keywords[] = {
@@ -11,7 +11,16 @@ const int KEYWORD_COUNT = sizeof(keywords) / sizeof(keywords[0]);
 // Function to check if a word is a keyword
 int isKeyword(char* word) {
     for (int k = 0; k < KEYWORD_COUNT; k++) {
-        if (strcmp(keywords[k], word) == 0) {
+        const char* keyword = keywords[k];
+        int i = 0;
+        
+        // Manual character-by-character comparison loop
+        while (word[i] != '\0' && keyword[i] != '\0' && word[i] == keyword[i]) {
+            i++;
+        }
+        
+        // If both strings terminated at the same time, they are equal
+        if (word[i] == '\0' && keyword[i] == '\0') {
             return 1; // It is a keyword (noise word)
         }
     }
