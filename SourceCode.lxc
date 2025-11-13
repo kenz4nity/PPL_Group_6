@@ -1,10 +1,11 @@
 int main() {
-    text 1hello = 10;
-    #*This 
-    is
-    A
-    multi
-    line
-    Comment*#
+    123121notidentifier
+    float
+    char
+    compare
+    return
+    exclusive
+    inclusive
+    test
 }
 
