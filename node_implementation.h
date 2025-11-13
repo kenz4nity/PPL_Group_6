@@ -10,5 +10,6 @@
     void insertAtEndLexeme(struct LexemeNode** head, char lexeme[], int line, int column);
     void displayList(struct Node* head);
     void displayListLexeme(struct LexemeNode* head);
+    void writeSymbolTableToFile(struct Node* head, const char* filename);
 
     #endif 

@@ -12,28 +12,18 @@ int IsIdentifier (char* input);
 
 int main () {
     struct LexemeNode* lexeme_head = NULL;
-    readFileAndStoreLexemes("SourceCode.txt", &lexeme_head);
+    struct Node* token_head = NULL;
+    
+    readFileAndStoreLexemes("SourceCode.lxc", &lexeme_head);
 
-    while (lexeme_head != NULL) {
-        lexicalAnalyzer(lexeme_head->lexeme);
-
-        lexeme_head = lexeme_head->next;
-    } 
-
-    // displayListLexeme(lexeme_head);
-/*     struct Node* head = NULL;
-
-    struct LexemeNode* temp_lexeme = lexeme_head;
-
-    while (temp_lexeme != NULL) {
-        if (IsIdentifier(temp_lexeme->lexeme)) {
-            insertAtEnd(&head, IDENTIFIER, temp_lexeme->lexeme, temp_lexeme->line, temp_lexeme->column);
-        }
-
-        temp_lexeme = temp_lexeme->next;
+    struct LexemeNode* temp = lexeme_head;
+    while (temp != NULL) {
+        lexicalAnalyzer(temp->lexeme, &token_head, temp->line, temp->column);
+        temp = temp->next;
     }
-
-    displayList(head); */
+    
+    // Write symbol table to file
+    writeSymbolTableToFile(token_head, "SymbolTable.txt");
 
     return 0;
 }
@@ -100,15 +90,14 @@ void readFileAndStoreLexemes(const char *filename, struct LexemeNode **head) {
             }
 
             // --- Multi-line comment (#* ... *#) ---
-            // --- Multi-line comment (#* ... *#) ---
             if (ch == '#' && next_ch == '*') {
                 char comment[MAX_LEXEME_LEN * 10] = "#*";  // buffer for comment
                 int i = 2;
                 char prev = '*';  // Initialize to '*' since we already have "#*"
 
                 while ((ch = fgetc(file)) != EOF && i < (int)sizeof(comment) - 1) {
-                    comment[i++] = ch;  // Add character first
-
+                    comment[i] = ch;  // Store character WITHOUT incrementing yet
+                    
                     if (ch == '\n') {
                         line++;
                         column = 1;
@@ -118,9 +107,11 @@ void readFileAndStoreLexemes(const char *filename, struct LexemeNode **head) {
 
                     // Check if we found the terminator *#
                     if (prev == '*' && ch == '#') {
+                        i++;  // NOW increment to include the '#'
                         break;  // Exit the loop, we've captured the full comment
                     }
 
+                    i++;  // Increment after the check
                     prev = ch;  // Update prev for next iteration
                 }
 

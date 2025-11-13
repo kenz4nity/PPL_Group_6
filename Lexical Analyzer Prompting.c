@@ -3,6 +3,8 @@
 #include <ctype.h>   // For isdigit(), isalpha(), isalnum()
 #include <stdbool.h> // For bool type
 #include <stdlib.h>  // For exit()
+#include "token.h"
+#include "node_implementation.h"
 
 
 // --- NEW: Logic from Keyword.c ---
@@ -324,9 +326,10 @@ const char* key_word(const char* word) {
  *
  * This single function implements the complete DFA.
  */
-void lexicalAnalyzer(char* word) {
+void lexicalAnalyzer(char* word, struct Node** head, int line, int column) {
     int i = 0;
     int len = (int)strlen(word);
+    int current_column = column;
 
     while (i < len) {
         char currentChar = word[i];
@@ -337,214 +340,249 @@ void lexicalAnalyzer(char* word) {
             // --- Logic from operationSymbol.c ---
         case '+':
             if (i + 1 < len && word[i + 1] == '+') {
-                printf("Token: ARITHMETIC_OP, Lexeme: ++\n"); i += 2;
+                insertAtEnd(head, OPERATION, "++", line, current_column);
+                i += 2; current_column += 2;
             }
             else if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: ASSIGNMENT_OP, Lexeme: +=\n"); i += 2;
+                insertAtEnd(head, OPERATION, "+=", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: ARITHMETIC_OP, Lexeme: +\n"); i++;
+                insertAtEnd(head, OPERATION, "+", line, current_column);
+                i++; current_column++;
             }
             break;
         case '-':
             if (i + 1 < len && word[i + 1] == '-') {
-                printf("Token: ARITHMETIC_OP, Lexeme: --\n"); i += 2;
+                insertAtEnd(head, OPERATION, "--", line, current_column);
+                i += 2; current_column += 2;
             }
             else if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: ASSIGNMENT_OP, Lexeme: -=\n"); i += 2;
+                insertAtEnd(head, OPERATION, "-=", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: ARITHMETIC_OP, Lexeme: -\n"); i++;
+                insertAtEnd(head, OPERATION, "-", line, current_column);
+                i++; current_column++;
             }
             break;
         case '*':
             // Check for multi-line comment end first
             if (i + 1 < len && word[i + 1] == '#') {
-                printf("Token: EML_COMMENT, Lexeme: *#\n");
-                i += 2; // This is technically part of comment logic
+                insertAtEnd(head, COMMENT, "*#", line, current_column);
+                i += 2; current_column += 2;
             }
             else if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: ASSIGNMENT_OP, Lexeme: *=\n"); i += 2;
+                insertAtEnd(head, OPERATION, "*=", line, current_column);
+                i += 2; current_column += 2;
             }
             else if (i + 1 < len && word[i + 1] == '*') {
-                printf("Token: EXPONENT_OP, Lexeme: **\n"); i += 2;
+                insertAtEnd(head, OPERATION, "**", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: ARITHMETIC_OP, Lexeme: *\n"); i++;
+                insertAtEnd(head, OPERATION, "*", line, current_column);
+                i++; current_column++;
             }
             break;
         case '/':
             if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: ASSIGNMENT_OP, Lexeme: /=\n"); i += 2;
+                insertAtEnd(head, OPERATION, "/=", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: ARITHMETIC_OP, Lexeme: /\n"); i++;
+                insertAtEnd(head, OPERATION, "/", line, current_column);
+                i++; current_column++;
             }
             break;
         case '%':
             if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: ASSIGNMENT_OP, Lexeme: %%=\n"); i += 2;
+                insertAtEnd(head, OPERATION, "%=", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: ARITHMETIC_OP, Lexeme: %%\n"); i++;
+                insertAtEnd(head, OPERATION, "%", line, current_column);
+                i++; current_column++;
             }
             break;
         case '<':
             if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: RELATIONAL_OP, Lexeme: <=\n"); i += 2;
+                insertAtEnd(head, OPERATION, "<=", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: RELATIONAL_OP, Lexeme: <\n"); i++;
+                insertAtEnd(head, OPERATION, "<", line, current_column);
+                i++; current_column++;
             }
             break;
         case '>':
             if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: RELATIONAL_OP, Lexeme: >=\n"); i += 2;
+                insertAtEnd(head, OPERATION, ">=", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: RELATIONAL_OP, Lexeme: >\n"); i++;
+                insertAtEnd(head, OPERATION, ">", line, current_column);
+                i++; current_column++;
             }
             break;
         case '=':
             if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: RELATIONAL_OP, Lexeme: ==\n"); i += 2;
+                insertAtEnd(head, OPERATION, "==", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: ASSIGNMENT_OP, Lexeme: =\n"); i++;
+                insertAtEnd(head, OPERATION, "=", line, current_column);
+                i++; current_column++;
             }
             break;
         case '!':
             if (i + 1 < len && word[i + 1] == '=') {
-                printf("Token: RELATIONAL_OP, Lexeme: !=\n"); i += 2;
+                insertAtEnd(head, OPERATION, "!=", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: LOGICAL_OP, Lexeme: !\n"); i++;
+                insertAtEnd(head, OPERATION, "!", line, current_column);
+                i++; current_column++;
             }
             break;
         case '&':
             if (i + 1 < len && word[i + 1] == '&') {
-                printf("Token: LOGICAL_OP, Lexeme: &&\n"); i += 2;
+                insertAtEnd(head, OPERATION, "&&", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: UNKNOWN_TOKEN, Lexeme: &\n"); i++;
+                i++; current_column++;
             }
             break;
         case '|':
             if (i + 1 < len && word[i + 1] == '|') {
-                printf("Token: LOGICAL_OP, Lexeme: ||\n"); i += 2;
+                insertAtEnd(head, OPERATION, "||", line, current_column);
+                i += 2; current_column += 2;
             }
             else {
-                printf("Token: UNKNOWN_TOKEN, Lexeme: |\n"); i++;
+                i++; current_column++;
             }
             break;
 
             // --- Logic from comment_analyzer.c ---
         case '#':
-            // Check if this is already a complete multi-line comment lexeme
             if (i + 1 < len && word[i + 1] == '*') {
-                // This is a multi-line comment that was already captured
-                // Print the entire lexeme character by character to ensure nothing is lost
-                printf("Token: ML_COMMENT, Lexeme: ");
-                for (int j = 0; word[j] != '\0'; j++) {
-                    putchar(word[j]);
-                }
-                printf("\n");
-                return; // Done processing this lexeme
+                // Multi-line comment - store the entire comment
+                insertAtEnd(head, COMMENT, word, line, current_column);
+                return; // Done with this lexeme
             }
-            else if (i + 1 < len && word[i] == '#' && word[i + 1] == '#') {
-                // Single-line comment - print entire lexeme
-                printf("Token: SL_COMMENT, Lexeme: %s\n", word);
-                return;
+            else if (i + 1 < len && word[i + 1] == '#') {
+                // Single-line comment - store the entire comment
+                insertAtEnd(head, COMMENT, word, line, current_column);
+                return; // Done with this lexeme
             }
             else {
-                printf("Token: UNKNOWN_TOKEN, Lexeme: #\n");
-                i++;
+                i++; current_column++;
             }
-            
             break;
 
             // --- Logic from Delimeters_and_Brackets.c ---
         case ';':
-            printf("Token: END_OF_STATEMENT, Lexeme: ;\n"); i++;
+            insertAtEnd(head, DELIMITER, ";", line, current_column);
+            i++; current_column++;
             break;
         case ':':
-            printf("Token: START_CODE_BLOCK, Lexeme: :\n"); i++;
+            insertAtEnd(head, DELIMITER, ":", line, current_column);
+            i++; current_column++;
             break;
         case ',':
-            printf("Token: SEPARATOR, Lexeme: ,\n"); i++;
+            insertAtEnd(head, DELIMITER, ",", line, current_column);
+            i++; current_column++;
             break;
         case '(':
-            printf("Token: LPAREN, Lexeme: (\n"); i++;
+            insertAtEnd(head, DELIMITER, "(", line, current_column);
+            i++; current_column++;
             break;
         case ')':
-            printf("Token: RPAREN, Lexeme: )\n"); i++;
+            insertAtEnd(head, DELIMITER, ")", line, current_column);
+            i++; current_column++;
             break;
         case '{':
-            printf("Token: LBRACE, Lexeme: {\n"); i++;
+            insertAtEnd(head, DELIMITER, "{", line, current_column);
+            i++; current_column++;
             break;
         case '}':
-            printf("Token: RBRACE, Lexeme: }\n"); i++;
+            insertAtEnd(head, DELIMITER, "}", line, current_column);
+            i++; current_column++;
             break;
         case '[':
-            printf("Token: LBRACKET, Lexeme: [\n"); i++;
+            insertAtEnd(head, DELIMITER, "[", line, current_column);
+            i++; current_column++;
             break;
         case ']':
-            printf("Token: RBRACKET, Lexeme: ]\n"); i++;
+            insertAtEnd(head, DELIMITER, "]", line, current_column);
+            i++; current_column++;
             break;
 
             // --- Logic from Constant.c (String and Char) ---
         case '"': {
-            char lexeme[100];
+            char lexeme[1000];
             int k = 0;
-            lexeme[k++] = word[i++]; // Add the opening "
+            int start_col = current_column;
+            lexeme[k++] = word[i++]; current_column++; // Add the opening "
             while (i < len && word[i] != '"') {
                 lexeme[k++] = word[i++];
+                current_column++;
             }
             if (i < len && word[i] == '"') {
-                lexeme[k++] = word[i++]; // Add the closing "
+                lexeme[k++] = word[i++]; current_column++; // Add the closing "
             }
             lexeme[k] = '\0';
-            printf("Token: CONSTANT, Lexeme: %s\n", lexeme);
+            insertAtEnd(head, RESERVED_WORDS, lexeme, line, start_col);
             break;
         }
         case '\'': {
             if (i + 2 < len && word[i + 2] == '\'') {
-                printf("Token: CONSTANT, Lexeme: '");
-                putchar(word[i + 1]); // Print the char inside
-                printf("'\n");
-                i += 3; // Skip over the 'c'
+                char lexeme[4];
+                lexeme[0] = '\'';
+                lexeme[1] = word[i + 1];
+                lexeme[2] = '\'';
+                lexeme[3] = '\0';
+                insertAtEnd(head, RESERVED_WORDS, lexeme, line, current_column);
+                i += 3; current_column += 3;
             }
             else {
-                printf("Token: UNKNOWN_TOKEN, Lexeme: '\n"); i++;
+                i++; current_column++;
             }
             break;
         }
 
-                 // --- Whitespace Handling ---
+        // --- Whitespace Handling ---
         case ' ':
         case '\t':
         case '\n':
-            i++; // Ignore whitespace
+            insertAtEnd(head, WHITE_SPACE, word, line, current_column);
+            i++; // Ignore whitespace for parsing
+            return; // Each whitespace is its own lexeme
             break;
 
-            // --- MODIFIED: Logic from Constant.c and Keyword.c ---
+        // --- MODIFIED: Logic from Constant.c and Keyword.c ---
         default:
             // Rule for Numbers (Int/Float) -> CONSTANT
             if (isdigit(currentChar)) {
                 char lexeme[100];
                 int k = 0;
+                int start_col = current_column;
                 while (i < len && (isdigit(word[i]) || word[i] == '.')) {
                     lexeme[k++] = word[i++];
+                    current_column++;
                 }
                 lexeme[k] = '\0';
-                printf("Token: CONSTANT, Lexeme: %s\n", lexeme);
+                insertAtEnd(head, RESERVED_WORDS, lexeme, line, start_col);
             }
-            // Rule for ALL "Words" -> Check if KEYWORD or CONSTANT (Identifier)
+            // Rule for ALL "Words" -> Check if KEYWORD or IDENTIFIER
             else if (isalpha(currentChar)) {
                 char lexeme[100];
                 int k = 0;
+                int start_col = current_column;
                 while (i < len && isalnum(word[i])) {
                     lexeme[k++] = word[i++];
+                    current_column++;
                 }
                 lexeme[k] = '\0';
 
@@ -552,31 +590,31 @@ void lexicalAnalyzer(char* word) {
                 const char* keyword_result = key_word(lexeme);
 
                 if (strncmp(keyword_result, "Keyword: ", 9) == 0) {
-                    // It's a keyword. Print "KEYWORD" as the token type
-                    printf("Token: KEYWORD, Lexeme: %s\n", lexeme);
+                    // It's a keyword
+                    insertAtEnd(head, KEYWORDS, lexeme, line, start_col);
                 }
                 else {
-                    if (!isalpha(word[0]) && word[0] != '_') {
-                        printf("Token: UNKNOWN_TOKEN, Lexeme: %s\n", word);
+                    // Check if it's a valid identifier
+                    if (!isalpha(lexeme[0]) && lexeme[0] != '_') {
+                        // Invalid identifier
                     } else {
                         int valid = 1;
-                        for (int i = 1; word[i] != '\0'; i++) {
-                            if (!isalnum(word[i]) && word[i] != '_') {
+                        for (int j = 1; lexeme[j] != '\0'; j++) {
+                            if (!isalnum(lexeme[j]) && lexeme[j] != '_') {
                                 valid = 0;
                                 break;
                             }
                         }
 
-                        if (valid)
-                            printf("Token: IDENTIFIER, Lexeme: %s\n", word);
+                        if (valid) {
+                            insertAtEnd(head, IDENTIFIER, lexeme, line, start_col);
+                        }
                     }
-
                 }
             }
             // Otherwise, it's an unknown symbol
             else {
-                printf("Token: UNKNOWN_TOKEN, Lexeme: %c\n", currentChar);
-                i++;
+                i++; current_column++;
             }
             break;
         }

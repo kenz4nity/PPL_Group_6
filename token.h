@@ -14,7 +14,7 @@ typedef enum tokenType {
     
 struct Node {
     TokenType tokentype;
-    char lexeme [50];
+    char lexeme [1000];
     int line;
     int column;
     struct Node* next;

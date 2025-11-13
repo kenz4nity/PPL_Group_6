@@ -102,3 +102,37 @@ void displayListLexeme(struct LexemeNode* head) {
     }
     printf("NULL\n");
 }
+
+void writeSymbolTableToFile(struct Node* head, const char* filename) {
+    FILE* file = fopen(filename, "w");
+    if (file == NULL) {
+        perror("Error opening output file");
+        return;
+    }
+
+    // Write each token in simple format
+    struct Node* temp = head;
+    while (temp != NULL) {
+        fprintf(file, "%s ", tokenTypeToString(temp->tokentype));
+        
+        // Write lexeme character by character, escaping special characters
+        int len = strlen(temp->lexeme);
+        for (int i = 0; i < len; i++) {
+            if (temp->lexeme[i] == '\n') {
+                fprintf(file, "\\n");
+            } else if (temp->lexeme[i] == '\t') {
+                fprintf(file, "\\t");
+            } else if (temp->lexeme[i] == ' ') {
+                fprintf(file, "_");
+            } else {
+                fputc(temp->lexeme[i], file);
+            }
+        }
+        
+        fprintf(file, " %d %d\n", temp->line, temp->column);
+        temp = temp->next;
+    }
+    
+    fclose(file);
+    printf("Symbol table written to '%s' successfully!\n", filename);
+}
