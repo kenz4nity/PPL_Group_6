@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#include <pcre.h>
 #include "node_implementation.h"
 #include "token.h"
 #include "Lexical Analyzer Prompting.h"
@@ -15,13 +14,13 @@ int main () {
     struct LexemeNode* lexeme_head = NULL;
     readFileAndStoreLexemes("SourceCode.txt", &lexeme_head);
 
-/*     while (lexeme_head != NULL) {
+    while (lexeme_head != NULL) {
         lexicalAnalyzer(lexeme_head->lexeme);
 
         lexeme_head = lexeme_head->next;
-    }  */
+    }
 
-    displayListLexeme(lexeme_head);
+    // displayListLexeme(lexeme_head);
 /*     struct Node* head = NULL;
 
     struct LexemeNode* temp_lexeme = lexeme_head;
