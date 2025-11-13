@@ -18,7 +18,7 @@ int main () {
         lexicalAnalyzer(lexeme_head->lexeme);
 
         lexeme_head = lexeme_head->next;
-    }
+    } 
 
     // displayListLexeme(lexeme_head);
 /*     struct Node* head = NULL;
@@ -100,13 +100,14 @@ void readFileAndStoreLexemes(const char *filename, struct LexemeNode **head) {
             }
 
             // --- Multi-line comment (#* ... *#) ---
+            // --- Multi-line comment (#* ... *#) ---
             if (ch == '#' && next_ch == '*') {
                 char comment[MAX_LEXEME_LEN * 10] = "#*";  // buffer for comment
                 int i = 2;
-                int prev = 0;
+                char prev = '*';  // Initialize to '*' since we already have "#*"
 
                 while ((ch = fgetc(file)) != EOF && i < (int)sizeof(comment) - 1) {
-                    comment[i++] = ch;
+                    comment[i++] = ch;  // Add character first
 
                     if (ch == '\n') {
                         line++;
@@ -115,13 +116,12 @@ void readFileAndStoreLexemes(const char *filename, struct LexemeNode **head) {
                         column++;
                     }
 
-                    // ✅ Move prev update *before* the check
+                    // Check if we found the terminator *#
                     if (prev == '*' && ch == '#') {
-                        // We already added '#' into comment[i-1]
-                        break;  // properly includes the terminator
+                        break;  // Exit the loop, we've captured the full comment
                     }
 
-                    prev = ch;
+                    prev = ch;  // Update prev for next iteration
                 }
 
                 comment[i] = '\0';

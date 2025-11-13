@@ -21,7 +21,7 @@ struct Node {
 };
 
 struct LexemeNode {
-    char lexeme [50];
+    char lexeme [1000];
     int line;
     int column;
     struct LexemeNode* next;
