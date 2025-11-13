@@ -440,11 +440,28 @@ void lexicalAnalyzer(char* word) {
 
             // --- Logic from comment_analyzer.c ---
         case '#':
-            if (i + 1 < len && word[i + 1] == '#') { // ## line comment
-                printf("Token: SL_COMMENT, Lexeme: ##\n");
-                i += 2; // consume '##'
-                while (i < len && word[i] != '\n') i++; // skip to end of line
-                // The '\n' will be skipped by the whitespace case
+            if (i + 1 < len && word[i] == '#' && word[i + 1] == '#') { // detect "##" comment
+                int start = i; // mark where comment begins
+                i += 2;        // skip the "##"
+
+                // Move until end of line or end of buffer
+                while (i < len && word[i] != '\n') {
+                    i++;
+                }
+
+                // Extract the full comment (from "##" up to newline)
+                char comment[256];
+                int comment_len = i - start;
+                if (comment_len >= sizeof(comment))
+                    comment_len = sizeof(comment) - 1; // prevent overflow
+
+                strncpy(comment, &word[start], comment_len);
+                comment[comment_len] = '\0';
+
+                printf("Token: SL_COMMENT, Lexeme: %s\n", comment);
+
+                // If newline found, we’ll let outer logic handle it as normal whitespace
+                // So don’t skip it entirely — just stop here
             }
             else if (i + 1 < len && word[i + 1] == '*') { // #* block comment start
                 printf("Token: SML_COMMENT, Lexeme: #*\n");
