@@ -1,0 +1,37 @@
+main: {
+
+let int a;
+let float b = a;
+cons int CONST_VAL = 10;
+
+put name;
+
+display name;
+display "Hello, world!";
+display x, y, "Sum:", x + y;
+
+section = 1;
+year = 3;
+yearandsection = year + section;
+
+do if (x > 0) { 
+
+    do if (y > 0) { 
+        display “Positive”;
+    }
+}
+ then do{ 
+    display “Negative or Zero”;
+}
+
+
+continue until (i = 0; i <= 5; i++) { ##outer loop (rows)
+    continue until (j = 1; j <= 3; j++) { ##inner loop (columns)
+        display “Hello World”;
+}
+    display “\n\”;
+}
+
+
+}
+
