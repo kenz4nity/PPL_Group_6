@@ -6,906 +6,867 @@
 #define MAX_TOKEN_LEN 1000
 #define MAX_ERRORS 100
 
-// Token types from lexical analyzer
 typedef enum {
-    IDENTIFIER,
-    OPERATION,
-    KEYWORDS,
-    RESERVED_WORDS,
-    CONSTANT,
-    NOISE_WORDS,
-    COMMENT,
-    WHITE_SPACE,
-    DELIMITER
+    IDENTIFIER, OPERATION, KEYWORDS, RESERVED_WORDS,
+    STRING_LITERAL, CHAR_LITERAL, CONSTANT, NOISE_WORDS,
+    COMMENT, WHITE_SPACE, DELIMITER, QUOTATION,
+    OPEN_CURLY_BRACKET, CLOSE_CURLY_BRACKET,
+    LEFT_PARENTHESIS, RIGHT_PARENTHESIS,
+    OPEN_BRACKET, CLOSE_BRACKET, SLASH, INVALID_TOKEN,
+    END_OF_FILE
 } TokenType;
 
-// Token structure
 typedef struct Token {
     TokenType type;
     char lexeme[MAX_TOKEN_LEN];
-    int line;
-    int column;
     struct Token* next;
 } Token;
 
-// Error storage structure
-typedef struct ErrorInfo {
-    char message[500];
-    int line;
-    int column;
-    char found[MAX_TOKEN_LEN];
-} ErrorInfo;
+typedef struct {
+    Token* head;
+    Token* current;
+    FILE* output;
+    int error_count;
+    bool panic_mode;
+    char error_list[MAX_ERRORS][256];
+} Parser;
 
-// Global variables for parsing
-Token* current_token = NULL;
-Token* token_list = NULL;
-FILE* parse_output = NULL;
-ErrorInfo errors[MAX_ERRORS];
-int error_count = 0;
+// Token management
+Token* createToken(TokenType type, const char* lexeme);
+void addToken(Token** head, TokenType type, const char* lexeme);
+void readTokensFromFile(const char* filename, Token** head);
+void freeTokens(Token* head);
 
-// Function prototypes
-void readTokensFromFile(const char* filename);
-void syntaxAnalyzer();
-void advance();
-bool match(TokenType type, const char* lexeme);
-bool matchType(TokenType type);
-bool check(TokenType type, const char* lexeme);
-bool checkType(TokenType type);
-void recordError(const char* message);
-void skipWhitespace();
-void synchronize();
-void skipToSemicolon();
-void skipToCloseBrace();
+// Parser functions
+void initParser(Parser* p, Token* tokens, FILE* output);
+Token* getCurrentToken(Parser* p);
+bool match(Parser* p, const char* lexeme);
+bool matchType(Parser* p, TokenType type);
+bool checkType(Parser* p, TokenType type);
+bool check(Parser* p, const char* lexeme);
+void advance(Parser* p);
+void reportError(Parser* p, const char* message);
+void synchronize(Parser* p);
+void skipWhitespace(Parser* p);
 
-// Grammar rule functions
-void parseProgram();
-void parseBlock();
-void parseStatement();
-void parseDecStmt();
-void parseAssStmt();
-void parseConditionalStmt();
-void parseIterativeStmt();
-void parseOutputStmt();
-void parseInputStmt();
-void parseBreakStmt();
-void parseExpr();
-void parseLogicalOrExpr();
-void parseLogicalAndExpr();
-void parseEqualityExpr();
-void parseRelationalExpr();
-void parseAdditiveExpr();
-void parseMultiplicativeExpr();
-void parseUnaryExpr();
-void parsePostfixExpr();
-void parsePrimaryExpr();
-void parseIdList();
-void parseExprList();
-bool isDataType();
-bool isScopeModifier();
+// Grammar rules
+void parseProgram(Parser* p);
+void parseBlock(Parser* p);
+void parseStatement(Parser* p);
+void parseDeclarationStatement(Parser* p);
+void parseAssignmentStatement(Parser* p);
+void parseInputStatement(Parser* p);
+void parseOutputStatement(Parser* p);
+void parseConditionalStatement(Parser* p);
+void parseIfStatement(Parser* p);
+void parseCompareStatement(Parser* p);
+void parseIterativeStatement(Parser* p);
+void parseBreakStatement(Parser* p);
+void parseExpression(Parser* p);
+void parseAssignExpression(Parser* p);
+void parseConditionalExpression(Parser* p);
+void parseLogicalOrExpression(Parser* p);
+void parseLogicalAndExpression(Parser* p);
+void parseBitwiseOrExpression(Parser* p);
+void parseBitwiseXorExpression(Parser* p);
+void parseBitwiseAndExpression(Parser* p);
+void parseEqualityExpression(Parser* p);
+void parseRelationalExpression(Parser* p);
+void parseAdditiveExpression(Parser* p);
+void parseTerm(Parser* p);
+void parseUnaryExpression(Parser* p);
+void parsePostfixExpression(Parser* p);
+void parseFactor(Parser* p);
+void parseExpressionList(Parser* p);
 
 int main() {
-    // Read tokens from symbol table
-    readTokensFromFile("SymbolTable.txt");
+    Token* tokens = NULL;
     
-    // Open output file for parse results
-    parse_output = fopen("ParseOutput.txt", "w");
-    if (parse_output == NULL) {
-        fprintf(stderr, "Error: Cannot create ParseOutput.txt\n");
+    readTokensFromFile("SymbolTable.txt", &tokens);
+    
+    FILE* output = fopen("ParseOutput.txt", "w");
+    if (!output) {
+        fprintf(stderr, "Error: Cannot create output file\n");
         return 1;
     }
-       
-    // Start syntax analysis
-    fprintf(parse_output, "=== SYNTAX ANALYSIS ===\n\n");
-    printf("Starting syntax analysis...\n");
-    printf("Using: Recursive Descent Parser with Panic Mode Recovery\n\n");
     
-    current_token = token_list;
-    skipWhitespace();
+    Parser parser;
+    initParser(&parser, tokens, output);
     
-    parseProgram();
+    fprintf(output, "=== LEX-C SYNTAX ANALYZER ===\n");
+    fprintf(output, "Starting syntax analysis...\n\n");
     
-    // Display all errors at the end
-    fprintf(parse_output, "\n=== ANALYSIS COMPLETE ===\n\n");
+    parseProgram(&parser);
     
-    if (error_count == 0) {
-        fprintf(parse_output, "SUCCESS: Your code has no syntax errors.\n");
-        printf("\n SUCCESS: Your code has no syntax errors.\n");
+    fprintf(output, "\n=== SYNTAX ANALYSIS COMPLETE ===\n");
+    
+    if (parser.error_count == 0) {
+        fprintf(output, "✓ No syntax errors found.\n");
+        printf("✓ Parsing completed successfully! No errors found.\n");
     } else {
-        fprintf(parse_output, " FOUND %d ERROR(S):\n\n", error_count);
-        printf("\n FOUND %d ERROR(S):\n\n", error_count);
+        fprintf(output, "✗ Found %d syntax error(s):\n", parser.error_count);
         
-        for (int i = 0; i < error_count; i++) {
-            fprintf(parse_output, "Error %d (Line %d, Column %d):\n", 
-                    i + 1, errors[i].line, errors[i].column);
-            fprintf(parse_output, "  Problem: %s\n", errors[i].message);
-            fprintf(parse_output, "  Found: '%s'\n\n", errors[i].found);
-            
-            printf("Error %d (Line %d, Column %d):\n", 
-                   i + 1, errors[i].line, errors[i].column);
-            printf("  Problem: %s\n", errors[i].message);
-            printf("  Found: '%s'\n\n", errors[i].found);
+        // Print the numbered list of errors
+        for (int i = 0; i < parser.error_count && i < MAX_ERRORS; i++) {
+            fprintf(output, "  %d. %s\n", i + 1, parser.error_list[i]);
         }
         
-        fprintf(parse_output, "Total: %d error(s) need to be fixed\n", error_count);
-        printf("Total: %d error(s) need to be fixed\n", error_count);
+        if (parser.error_count > MAX_ERRORS) {
+            fprintf(output, "  ... and %d more errors.\n", parser.error_count - MAX_ERRORS);
+        }
+
+        printf("✗ Parsing completed with %d error(s). Check ParseOutput.txt for the list.\n", 
+               parser.error_count);
     }
     
-    fclose(parse_output);
-    printf("\nResults saved to 'ParseOutput.txt'\n");
+    fclose(output);
+    freeTokens(tokens);
     
-    return error_count > 0 ? 1 : 0;
+    return 0;
 }
 
-void readTokensFromFile(const char* filename) {
+Token* createToken(TokenType type, const char* lexeme) {
+    Token* token = (Token*)malloc(sizeof(Token));
+    token->type = type;
+    strncpy(token->lexeme, lexeme, MAX_TOKEN_LEN - 1);
+    token->lexeme[MAX_TOKEN_LEN - 1] = '\0';
+    token->next = NULL;
+    return token;
+}
+
+void addToken(Token** head, TokenType type, const char* lexeme) {
+    Token* newToken = createToken(type, lexeme);
+    if (*head == NULL) {
+        *head = newToken;
+    } else {
+        Token* temp = *head;
+        while (temp->next != NULL) {
+            temp = temp->next;
+        }
+        temp->next = newToken;
+    }
+}
+
+TokenType stringToTokenType(const char* str) {
+    if (strcmp(str, "IDENTIFIER") == 0) return IDENTIFIER;
+    if (strcmp(str, "OPERATION") == 0) return OPERATION;
+    if (strcmp(str, "KEYWORDS") == 0) return KEYWORDS;
+    if (strcmp(str, "RESERVED_WORDS") == 0) return RESERVED_WORDS;
+    if (strcmp(str, "STRING_LITERAL") == 0) return STRING_LITERAL;
+    if (strcmp(str, "CHAR_LITERAL") == 0) return CHAR_LITERAL;
+    if (strcmp(str, "CONSTANT") == 0) return CONSTANT;
+    if (strcmp(str, "NOISE_WORDS") == 0) return NOISE_WORDS;
+    if (strcmp(str, "COMMENT") == 0) return COMMENT;
+    if (strcmp(str, "WHITE_SPACE") == 0) return WHITE_SPACE;
+    if (strcmp(str, "DELIMITER") == 0) return DELIMITER;
+    if (strcmp(str, "OPEN_CURLY_BRACKET") == 0) return OPEN_CURLY_BRACKET;
+    if (strcmp(str, "CLOSE_CURLY_BRACKET") == 0) return CLOSE_CURLY_BRACKET;
+    if (strcmp(str, "LEFT_PARENTHESIS") == 0) return LEFT_PARENTHESIS;
+    if (strcmp(str, "RIGHT_PARENTHESIS") == 0) return RIGHT_PARENTHESIS;
+    if (strcmp(str, "OPEN_BRACKET") == 0) return OPEN_BRACKET;
+    if (strcmp(str, "CLOSE_BRACKET") == 0) return CLOSE_BRACKET;
+    if (strcmp(str, "SLASH") == 0) return SLASH;
+    if (strcmp(str, "INVALID_TOKEN") == 0) return INVALID_TOKEN;
+    return INVALID_TOKEN;
+}
+
+void readTokensFromFile(const char* filename, Token** head) {
     FILE* file = fopen(filename, "r");
-    if (file == NULL) {
+    if (!file) {
         fprintf(stderr, "Error: Cannot open %s\n", filename);
         exit(1);
     }
     
-    char type_str[50];
-    char lexeme[MAX_TOKEN_LEN];
-    int line, column;
-    Token* tail = NULL;
-    
-    bool in_string = false;
-    char string_buffer[MAX_TOKEN_LEN] = "";
-    int string_line = 0, string_column = 0;
-    
-    while (fscanf(file, "%s", type_str) == 1) {
-        Token* tok = (Token*)malloc(sizeof(Token));
+    char line[MAX_TOKEN_LEN * 2];
+    while (fgets(line, sizeof(line), file)) {
+        char typeStr[100];
+        char lexeme[MAX_TOKEN_LEN];
         
-        // Parse token type
-        if (strcmp(type_str, "IDENTIFIER") == 0) tok->type = IDENTIFIER;
-        else if (strcmp(type_str, "OPERATION") == 0) tok->type = OPERATION;
-        else if (strcmp(type_str, "KEYWORDS") == 0) tok->type = KEYWORDS;
-        else if (strcmp(type_str, "RESERVED_WORDS") == 0) tok->type = RESERVED_WORDS;
-        else if (strcmp(type_str, "CONSTANT") == 0) tok->type = CONSTANT;
-        else if (strcmp(type_str, "NOISE_WORDS") == 0) tok->type = NOISE_WORDS;
-        else if (strcmp(type_str, "COMMENT") == 0) tok->type = COMMENT;
-        else if (strcmp(type_str, "WHITE_SPACE") == 0) tok->type = WHITE_SPACE;
-        else if (strcmp(type_str, "DELIMITER") == 0) tok->type = DELIMITER;
-        
-        fscanf(file, "%s", lexeme);
-        
-        if (strcmp(lexeme, "\\n") == 0) strcpy(tok->lexeme, "\n");
-        else if (strcmp(lexeme, "\\t") == 0) strcpy(tok->lexeme, "\t");
-        else if (strcmp(lexeme, "_") == 0) strcpy(tok->lexeme, " ");
-        else strcpy(tok->lexeme, lexeme);
-        
-        fscanf(file, "%d %d", &line, &column);
-        tok->line = line;
-        tok->column = column;
-        
-        // Handle string literal reconstruction
-        if (tok->type == RESERVED_WORDS && strcmp(tok->lexeme, "\"") == 0) {
-            if (!in_string) {
-                in_string = true;
-                strcpy(string_buffer, "\"");
-                string_line = line;
-                string_column = column;
-                free(tok);
-                continue;
-            } else {
-                strcat(string_buffer, "\"");
-                strcpy(tok->lexeme, string_buffer);
-                tok->line = string_line;
-                tok->column = string_column;
-                in_string = false;
-                string_buffer[0] = '\0';
+        if (sscanf(line, "%s %[^\n]", typeStr, lexeme) == 2) {
+            // Process lexeme - convert escape sequences
+            char processed[MAX_TOKEN_LEN];
+            int j = 0;
+            for (int i = 0; lexeme[i] != '\0' && j < MAX_TOKEN_LEN - 1; i++) {
+               if (lexeme[i] == '_' && stringToTokenType(typeStr) == WHITE_SPACE) {
+                processed[j++] = ' ';
+                } else {
+                    processed[j++] = lexeme[i];
+                }
             }
-        } else if (in_string) {
-            if (tok->type == IDENTIFIER) {
-                strcat(string_buffer, tok->lexeme);
-            }
-            free(tok);
-            continue;
-        }
-        
-        tok->next = NULL;
-        
-        if (token_list == NULL) {
-            token_list = tok;
-            tail = tok;
-        } else {
-            tail->next = tok;
-            tail = tok;
+            processed[j] = '\0';
+            
+            TokenType type = stringToTokenType(typeStr);
+            addToken(head, type, processed);
         }
     }
     
+    addToken(head, END_OF_FILE, "EOF");
     fclose(file);
 }
 
-void skipWhitespace() {
-    while (current_token != NULL && 
-           (current_token->type == WHITE_SPACE || current_token->type == COMMENT)) {
-        current_token = current_token->next;
+void freeTokens(Token* head) {
+    Token* temp;
+    while (head != NULL) {
+        temp = head;
+        head = head->next;
+        free(temp);
     }
 }
 
-void advance() {
-    if (current_token != NULL) {
-        current_token = current_token->next;
-        skipWhitespace();
+void initParser(Parser* p, Token* tokens, FILE* output) {
+    p->head = tokens;
+    p->current = tokens;
+    p->output = output;
+    p->error_count = 0;
+    p->panic_mode = false;
+}
+
+Token* getCurrentToken(Parser* p) {
+    return p->current;
+}
+
+void skipWhitespace(Parser* p) {
+    while (p->current && (p->current->type == WHITE_SPACE || 
+                          p->current->type == COMMENT)) {
+        p->current = p->current->next;
     }
 }
 
-bool match(TokenType type, const char* lexeme) {
-    if (check(type, lexeme)) {
-        advance();
-        return true;
-    }
-    if (type == KEYWORDS && current_token != NULL && 
-        current_token->type == IDENTIFIER && strcmp(current_token->lexeme, lexeme) == 0) {
-        advance();
+bool checkType(Parser* p, TokenType type) {
+    skipWhitespace(p);
+    return p->current && p->current->type == type;
+}
+
+bool check(Parser* p, const char* lexeme) {
+    skipWhitespace(p);
+    return p->current && strcmp(p->current->lexeme, lexeme) == 0;
+}
+
+bool matchType(Parser* p, TokenType type) {
+    if (checkType(p, type)) {
+        if (p->current->type != WHITE_SPACE && p->current->type != COMMENT) {
+            fprintf(p->output, "Matched: %s\n", p->current->lexeme);
+        }
+        p->current = p->current->next;
+        skipWhitespace(p);
         return true;
     }
     return false;
 }
 
-bool matchType(TokenType type) {
-    if (checkType(type)) {
-        advance();
+bool match(Parser* p, const char* lexeme) {
+    skipWhitespace(p);
+    if (p->current && strcmp(p->current->lexeme, lexeme) == 0) {
+        fprintf(p->output, "Matched: '%s'\n", lexeme);
+        p->current = p->current->next;
+        skipWhitespace(p);
         return true;
     }
     return false;
 }
 
-bool check(TokenType type, const char* lexeme) {
-    if (current_token == NULL) return false;
-    return current_token->type == type && strcmp(current_token->lexeme, lexeme) == 0;
+void advance(Parser* p) {
+    if (p->current && p->current->type != END_OF_FILE) {
+        p->current = p->current->next;
+        skipWhitespace(p);
+    }
 }
 
-bool checkType(TokenType type) {
-    if (current_token == NULL) return false;
-    return current_token->type == type;
-}
-
-void recordError(const char* message) {
-    if (error_count >= MAX_ERRORS) return;
-    
-    strcpy(errors[error_count].message, message);
-    if (current_token != NULL) {
-        errors[error_count].line = current_token->line;
-        errors[error_count].column = current_token->column;
-        strcpy(errors[error_count].found, current_token->lexeme);
+void reportError(Parser* p, const char* message) {
+    char errorMsg[256];
+    if (p->current) {
+        snprintf(errorMsg, sizeof(errorMsg), "%s. Found: '%s'", message, p->current->lexeme);
     } else {
-        errors[error_count].line = -1;
-        errors[error_count].column = -1;
-        strcpy(errors[error_count].found, "end of file");
+        snprintf(errorMsg, sizeof(errorMsg), "%s. (End of File)", message);
     }
-    error_count++;
+
+    fprintf(p->output, "\n[ERROR] %s\n", errorMsg);
+
+    if (p->error_count < MAX_ERRORS) {
+        strncpy(p->error_list[p->error_count], errorMsg, 255);
+        p->error_list[p->error_count][255] = '\0'; 
+
+    p->error_count++;
+    p->panic_mode = true;
+    }
 }
 
-// Panic mode recovery: skip to semicolon
-void skipToSemicolon() {
-    while (current_token != NULL && !check(DELIMITER, ";")) {
-        // Also stop at closing brace to avoid skipping too much
-        if (check(DELIMITER, "}")) {
+void synchronize(Parser* p) {
+    if (!p->panic_mode) return;
+    
+    p->panic_mode = false;
+    skipWhitespace(p);
+    
+    // Synchronize at statement boundaries
+    while (p->current && p->current->type != END_OF_FILE) {
+        if (check(p, ";")) {
+            advance(p); // consume semicolon
             return;
         }
-        advance();
-    }
-    if (check(DELIMITER, ";")) {
-        advance(); // consume the semicolon
-    }
-}
-
-// Panic mode recovery: skip to closing brace
-void skipToCloseBrace() {
-    int brace_count = 1;
-    while (current_token != NULL && brace_count > 0) {
-        if (check(DELIMITER, "{")) {
-            brace_count++;
-        } else if (check(DELIMITER, "}")) {
-            brace_count--;
-            if (brace_count == 0) {
-                return; // Don't consume the closing brace
-            }
+        
+        skipWhitespace(p);
+        
+        // Check for statement start keywords
+        if (check(p, "let") || check(p, "var") || check(p, "cons") ||
+            check(p, "put") || check(p, "display") || check(p, "do") ||
+            check(p, "compare") || check(p, "continue") || check(p, "stop") ||
+            check(p, "break") || check(p, "back") || check(p, "}")) {
+            return;
         }
-        advance();
+        
+        advance(p);
     }
 }
 
-bool isDataType() {
-    if (current_token == NULL || current_token->type != KEYWORDS) return false;
-    return strcmp(current_token->lexeme, "int") == 0 ||
-           strcmp(current_token->lexeme, "float") == 0 ||
-           strcmp(current_token->lexeme, "char") == 0 ||
-           strcmp(current_token->lexeme, "text") == 0 ||
-           strcmp(current_token->lexeme, "bool") == 0 ||
-           strcmp(current_token->lexeme, "time") == 0 ||
-           strcmp(current_token->lexeme, "date") == 0 ||
-           strcmp(current_token->lexeme, "timestamp") == 0;
-}
-
-bool isScopeModifier() {
-    if (current_token == NULL || current_token->type != KEYWORDS) return false;
-    return strcmp(current_token->lexeme, "let") == 0 ||
-           strcmp(current_token->lexeme, "var") == 0 ||
-           strcmp(current_token->lexeme, "out") == 0 ||
-           strcmp(current_token->lexeme, "in") == 0 ||
-           strcmp(current_token->lexeme, "only") == 0;
-}
-
-void parseProgram() {
-    fprintf(parse_output, "Parsing PROGRAM...\n");
+void parseProgram(Parser* p) {
+    fprintf(p->output, "\n--- Parsing PROGRAM ---\n");
+    skipWhitespace(p);
     
-    // Check for 'func' keyword (optional)
-    if (current_token != NULL && strcmp(current_token->lexeme, "func") == 0) {
-        advance();
+    if (!match(p, "main")) {
+        reportError(p, "Expected 'main' keyword at program start");
+        synchronize(p);
     }
     
-    // 'main' keyword - might be IDENTIFIER or KEYWORDS depending on lexer
-    if (current_token != NULL && strcmp(current_token->lexeme, "main") == 0) {
-        advance();
+    if (!match(p, ":")) {
+        reportError(p, "Expected ':' after 'main'");
+        synchronize(p);
+    }
+    
+    parseBlock(p);
+    
+    skipWhitespace(p);
+    if (!checkType(p, END_OF_FILE)) {
+        reportError(p, "Unexpected tokens after program end");
+    }
+}
+
+void parseBlock(Parser* p) {
+    fprintf(p->output, "\n--- Parsing BLOCK ---\n");
+    
+    if (!match(p, "{")) {
+        reportError(p, "Expected '{' to begin block");
+        synchronize(p);
+        return;
+    }
+    
+    while (!check(p, "}") && !checkType(p, END_OF_FILE)) {
+        parseStatement(p);
+        if (p->panic_mode) {
+            synchronize(p);
+        }
+    }
+    
+    if (!match(p, "}")) {
+        reportError(p, "Expected '}' to end block");
+    }
+}
+
+void parseStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing STATEMENT ---\n");
+    skipWhitespace(p);
+    
+    if (check(p, "let") || check(p, "var") || check(p, "cons") || check(p, "list")) {
+        parseDeclarationStatement(p);
+    } else if (checkType(p, IDENTIFIER)) {
+        parseAssignmentStatement(p);
+    } else if (check(p, "put")) {
+        parseInputStatement(p);
+    } else if (check(p, "display")) {
+        parseOutputStatement(p);
+    } else if (check(p, "do") || check(p, "compare")) {
+        parseConditionalStatement(p);
+    } else if (check(p, "continue") || check(p, "stop")) {
+        parseIterativeStatement(p);
+    } else if (check(p, "break") || check(p, "back")) {
+        parseBreakStatement(p);
+    } else if (checkType(p, COMMENT)) {
+        matchType(p, COMMENT);
+    } else if (check(p, "}")) {
+        return; // End of block
     } else {
-        recordError("Missing 'main' at the start of your program");
-        // Try to recover by looking for ':'
-        while (current_token != NULL && !check(DELIMITER, ":")) {
-            advance();
-        }
+        reportError(p, "Invalid statement");
+        synchronize(p);
+    }
+}
+
+void parseDeclarationStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing DECLARATION STATEMENT ---\n");
+    
+    // Storage class
+    if (!(match(p, "let") || match(p, "var") || match(p, "cons") || match(p, "list"))) {
+        reportError(p, "Expected storage class (let/var/cons/list)");
+        synchronize(p);
+        return;
     }
     
-    if (!match(DELIMITER, ":")) {
-        recordError("Missing ':' after 'main'");
-        // Continue anyway to find more errors
+    // Data type
+    if (!(match(p, "int") || match(p, "float") || match(p, "char") || 
+          match(p, "text") || match(p, "bool") || match(p, "time") || 
+          match(p, "date") || match(p, "timestamp"))) {
+        reportError(p, "Expected data type");
+        synchronize(p);
+        return;
     }
     
-    // Check if there's a block with braces or just statements
-    if (check(DELIMITER, "{")) {
-        // Traditional block with braces
-        parseBlock();
+    // Identifier
+    if (!matchType(p, IDENTIFIER)) {
+        reportError(p, "Expected identifier");
+        synchronize(p);
+        return;
+    }
+    
+    // Optional initialization
+    if (match(p, "=")) {
+        parseExpression(p);
+    }
+    
+    if (!match(p, ";")) {
+        reportError(p, "Expected ';' after declaration");
+        synchronize(p);
+    }
+}
+
+void parseAssignmentStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing ASSIGNMENT STATEMENT ---\n");
+    
+    if (!matchType(p, IDENTIFIER)) {
+        reportError(p, "Expected identifier");
+        synchronize(p);
+        return;
+    }
+    
+    // Assignment operator
+    if (!(match(p, "=") || match(p, "+=") || match(p, "-=") || 
+          match(p, "*=") || match(p, "/=") || match(p, "%="))) {
+        reportError(p, "Expected assignment operator");
+        synchronize(p);
+        return;
+    }
+    
+    parseExpression(p);
+    
+    if (!match(p, ";")) {
+        reportError(p, "Expected ';' after assignment");
+        synchronize(p);
+    }
+}
+
+void parseInputStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing INPUT STATEMENT ---\n");
+    
+    if (!match(p, "put")) {
+        reportError(p, "Expected 'put' keyword");
+        synchronize(p);
+        return;
+    }
+    
+    if (!matchType(p, IDENTIFIER)) {
+        reportError(p, "Expected identifier after 'put'");
+        synchronize(p);
+        return;
+    }
+    
+    if (!match(p, ";")) {
+        reportError(p, "Expected ';' after input statement");
+        synchronize(p);
+    }
+}
+
+void parseOutputStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing OUTPUT STATEMENT ---\n");
+    
+    if (!match(p, "display")) {
+        reportError(p, "Expected 'display' keyword");
+        synchronize(p);
+        return;
+    }
+    
+    parseExpressionList(p);
+    
+    if (!match(p, ";")) {
+        reportError(p, "Expected ';' after output statement");
+        synchronize(p);
+    }
+}
+
+void parseConditionalStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing CONDITIONAL STATEMENT ---\n");
+    
+    if (check(p, "do")) {
+        parseIfStatement(p);
+    } else if (check(p, "compare")) {
+        parseCompareStatement(p);
     } else {
-        // No braces - parse all statements until end of file
-        fprintf(parse_output, "  Parsing statements without block braces...\n");
-        while (current_token != NULL) {
-            Token* before = current_token;
-            parseStatement();
-            
-            // If we're stuck on the same token, skip it to prevent infinite loop
-            if (current_token == before && current_token != NULL) {
-                fprintf(parse_output, "  Warning: Skipping stuck token '%s'\n", current_token->lexeme);
-                advance();
-            }
-        }
-        fprintf(parse_output, "  All statements parsed.\n");
+        reportError(p, "Expected 'do' or 'compare'");
+        synchronize(p);
     }
-    
-    fprintf(parse_output, "PROGRAM parsing done.\n");
 }
 
-void parseBlock() {
-    fprintf(parse_output, "  Parsing BLOCK...\n");
+void parseIfStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing IF STATEMENT ---\n");
     
-    if (!match(DELIMITER, "{")) {
-        recordError("Missing '{' to start a block");
-        // Try to continue parsing statements
+    // 1. Parse "do if ( expression ) { block }"
+    if (!match(p, "do")) {
+        reportError(p, "Expected 'do'");
+        return;
     }
     
-    while (current_token != NULL && !check(DELIMITER, "}")) {
-        Token* before = current_token;
-        parseStatement();
+    if (!match(p, "if")) {
+        reportError(p, "Expected 'if' after 'do'");
+        synchronize(p);
+        return;
+    }
+    
+    if (!match(p, "(")) {
+        reportError(p, "Expected '(' after 'if'");
+        synchronize(p);
+        return;
+    }
+    
+    parseExpression(p);
+    
+    if (!match(p, ")")) {
+        reportError(p, "Expected ')' after condition");
+        synchronize(p);
+        return;
+    }
+    
+    parseBlock(p);
+    
+    // 2. [FIX] Handle "what if" (Else If) blocks
+    // We loop here because there can be multiple "what if" blocks
+    while (check(p, "what")) {
+        fprintf(p->output, "\n--- Parsing ELSE IF (WHAT) ---\n");
+        match(p, "what");
         
-        // If we're stuck on the same token, skip it to prevent infinite loop
-        if (current_token == before && current_token != NULL) {
-            fprintf(parse_output, "  Warning: Skipping stuck token '%s'\n", current_token->lexeme);
-            advance();
+        if (!match(p, "if")) {
+            reportError(p, "Expected 'if' after 'what'");
+            synchronize(p);
+        }
+        
+        if (!match(p, "(")) {
+            reportError(p, "Expected '(' after 'what if'");
+            synchronize(p);
+        }
+        
+        parseExpression(p);
+        
+        if (!match(p, ")")) {
+            reportError(p, "Expected ')' after condition");
+            synchronize(p);
+        }
+        
+        parseBlock(p);
+    }
+
+    // 3. Handle "then do" (Else) block
+    if (check(p, "then")) {
+        fprintf(p->output, "\n--- Parsing ELSE (THEN) ---\n");
+        match(p, "then");
+        if (!match(p, "do")) {
+            reportError(p, "Expected 'do' after 'then'");
+            synchronize(p);
+            return;
+        }
+        parseBlock(p);
+    }
+}
+
+void parseCompareStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing COMPARE STATEMENT ---\n");
+    
+    if (!match(p, "compare")) {
+        reportError(p, "Expected 'compare'");
+        return;
+    }
+    
+    parseExpression(p);
+    
+    if (!match(p, "{")) {
+        reportError(p, "Expected '{' after compare expression");
+        synchronize(p);
+        return;
+    }
+    
+    // Parse case list
+    while (check(p, "what")) {
+        match(p, "what");
+        if (!match(p, "if")) {
+            reportError(p, "Expected 'if' after 'what'");
+            synchronize(p);
+            continue;
+        }
+        
+        parseExpression(p);
+        
+        if (!match(p, ":")) {
+            reportError(p, "Expected ':' after case expression");
+            synchronize(p);
+            continue;
+        }
+        
+        // Parse statements until break
+        while (!check(p, "break") && !check(p, "what") && 
+               !check(p, "then") && !check(p, "}") && 
+               !checkType(p, END_OF_FILE)) {
+            parseStatement(p);
+            if (p->panic_mode) {
+                synchronize(p);
+                break;
+            }
+        }
+        
+        if (match(p, "break")) {
+            if (!match(p, ";")) {
+                reportError(p, "Expected ';' after 'break'");
+                synchronize(p);
+            }
         }
     }
     
-    if (!match(DELIMITER, "}")) {
-        recordError("Missing '}' to close a block");
+    // Optional default case
+    if (check(p, "then")) {
+        match(p, "then");
+        if (!match(p, "do")) {
+            reportError(p, "Expected 'do' after 'then'");
+            synchronize(p);
+        }
+        if (!match(p, ":")) {
+            reportError(p, "Expected ':' after 'then do'");
+            synchronize(p);
+        }
+        
+        while (!check(p, "}") && !checkType(p, END_OF_FILE)) {
+            parseStatement(p);
+            if (p->panic_mode) {
+                synchronize(p);
+                break;
+            }
+        }
+    }
+    
+    if (!match(p, "}")) {
+        reportError(p, "Expected '}' to end compare statement");
+    }
+}
+
+void parseIterativeStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing ITERATIVE STATEMENT ---\n");
+    
+    if (check(p, "continue")) {
+        match(p, "continue");
+        if (!match(p, "until")) {
+            reportError(p, "Expected 'until' after 'continue'");
+            synchronize(p);
+            return;
+        }
+        
+        if (!match(p, "(")) {
+            reportError(p, "Expected '(' after 'until'");
+            synchronize(p);
+            return;
+        }
+        
+        // Parse loop header (can be single expr or three exprs)
+        parseExpression(p);
+        
+        if (match(p, ";")) {
+            // For-loop style
+            parseExpression(p);
+            if (!match(p, ";")) {
+                reportError(p, "Expected ';' in for-loop header");
+                synchronize(p);
+            }
+            parseExpression(p);
+        }
+        
+        if (!match(p, ")")) {
+            reportError(p, "Expected ')' after loop header");
+            synchronize(p);
+            return;
+        }
+        
+        parseBlock(p);
+        
+    } else if (check(p, "stop")) {
+        match(p, "stop");
+        if (!match(p, "when")) {
+            reportError(p, "Expected 'when' after 'stop'");
+            synchronize(p);
+            return;
+        }
+        
+        if (!match(p, "(")) {
+            reportError(p, "Expected '(' after 'when'");
+            synchronize(p);
+            return;
+        }
+        
+        parseExpression(p);
+        
+        if (!match(p, ")")) {
+            reportError(p, "Expected ')' after condition");
+            synchronize(p);
+            return;
+        }
+        
+        parseBlock(p);
     } else {
-        fprintf(parse_output, "  BLOCK closed properly.\n");
+        reportError(p, "Expected 'continue' or 'stop'");
+        synchronize(p);
     }
-    
-    fprintf(parse_output, "  BLOCK parsing done.\n");
 }
 
-void parseStatement() {
-    if (current_token == NULL) {
-        recordError("Unexpected end of code");
+void parseBreakStatement(Parser* p) {
+    fprintf(p->output, "\n--- Parsing BREAK/CONTROL STATEMENT ---\n");
+    
+    if (!(match(p, "break") || match(p, "back"))) {
+        reportError(p, "Expected 'break' or 'back'");
+        synchronize(p);
         return;
     }
     
-    // Save position to check for 'if' keyword that might be classified as IDENTIFIER
-    bool is_if_keyword = (current_token->type == IDENTIFIER && 
-                          strcmp(current_token->lexeme, "if") == 0);
+    if (!match(p, ";")) {
+        reportError(p, "Expected ';' after break/back");
+        synchronize(p);
+    }
+}
+
+void parseExpression(Parser* p) {
+    fprintf(p->output, "--- Parsing EXPRESSION ---\n");
+    parseAssignExpression(p);
+}
+
+void parseAssignExpression(Parser* p) {
+    parseConditionalExpression(p);
+    if (match(p, "=") || match(p, "+=") || match(p, "-=") || 
+        match(p, "*=") || match(p, "/=") || match(p, "%=")) {
+            parseExpression(p);
+    }
+}
+
+void parseConditionalExpression(Parser* p) {
+    parseLogicalOrExpression(p);
     
-    // Declaration statement
-    if (isScopeModifier() || isDataType() || check(KEYWORDS, "cons")) {
-        parseDecStmt();
-    }
-    // Conditional statement - check for 'if' as IDENTIFIER too
-    else if (check(KEYWORDS, "do") || check(KEYWORDS, "compare") || 
-             (check(KEYWORDS, "if") || is_if_keyword)) {
-        parseConditionalStmt();
-    }
-    // Iterative statement
-    else if (check(KEYWORDS, "continue") || check(KEYWORDS, "stop")) {
-        parseIterativeStmt();
-    }
-    // Output statement
-    else if (check(KEYWORDS, "display")) {
-        parseOutputStmt();
-    }
-    // Input statement
-    else if (check(KEYWORDS, "put")) {
-        parseInputStmt();
-    }
-    // Break statement
-    else if (check(KEYWORDS, "break") || check(KEYWORDS, "back")) {
-        parseBreakStmt();
-    }
-    // Assignment statement
-    else if (checkType(IDENTIFIER)) {
-        parseAssStmt();
-    }
-    else {
-        recordError("This doesn't look like a valid statement");
-        skipToSemicolon(); // Recovery: skip to next statement
+    if (match(p, "?")) {
+        parseExpression(p);
+        if (!match(p, ":")) {
+            reportError(p, "Expected ':' in ternary expression");
+        }
+        parseExpression(p);
     }
 }
 
-void parseDecStmt() {
-    // Check for 'cons' (constant)
-    if (match(KEYWORDS, "cons")) {
-        if (!isDataType()) {
-            recordError("Missing data type after 'cons' (like int, float, text)");
-            skipToSemicolon();
-            return;
-        }
-        advance();
-        
-        if (!matchType(IDENTIFIER)) {
-            recordError("Missing variable name after data type");
-            skipToSemicolon();
-            return;
-        }
-        
-        if (!match(OPERATION, "=")) {
-            recordError("Constant needs '=' and a value");
-            skipToSemicolon();
-            return;
-        }
-        
-        parseExpr();
-        
-        if (!match(DELIMITER, ";")) {
-            recordError("Missing ';' at the end of this line");
-            skipToSemicolon();
-        }
-        return;
-    }
+void parseLogicalOrExpression(Parser* p) {
+    parseLogicalAndExpression(p);
     
-    // Optional scope modifier
-    if (isScopeModifier()) {
-        advance();
+    while (match(p, "||")) {
+        parseLogicalAndExpression(p);
     }
+}
+
+void parseLogicalAndExpression(Parser* p) {
+    parseBitwiseOrExpression(p);
     
-    // Data type (required)
-    if (!isDataType()) {
-        recordError("Missing data type (like int, float, text)");
-        skipToSemicolon();
-        return;
+    while (match(p, "&&")) {
+        parseBitwiseOrExpression(p);
     }
-    advance();
+}
+
+void parseBitwiseOrExpression(Parser* p) {
+    parseBitwiseXorExpression(p);
     
-    if (!matchType(IDENTIFIER)) {
-        recordError("Missing variable name");
-        skipToSemicolon();
-        return;
+    while (match(p, "|")) {
+        parseBitwiseXorExpression(p);
     }
+}
+
+void parseBitwiseXorExpression(Parser* p) {
+    parseBitwiseAndExpression(p);
     
-    // Check what comes next
-    if (match(OPERATION, "=")) {
-        parseExpr();
-        
-        while (match(DELIMITER, ",")) {
-            if (!matchType(IDENTIFIER)) {
-                recordError("Missing variable name after ','");
-                skipToSemicolon();
-                return;
-            }
-            if (match(OPERATION, "=")) {
-                parseExpr();
-            }
-        }
-        
-        if (!match(DELIMITER, ";")) {
-            recordError("Missing ';' at the end of this line");
-            skipToSemicolon();
-        }
-    }
-    else if (match(DELIMITER, ",")) {
-        parseIdList();
-        if (!match(DELIMITER, ";")) {
-            recordError("Missing ';' at the end of this line");
-            skipToSemicolon();
-        }
-    }
-    else if (match(DELIMITER, ";")) {
-        // Simple declaration is fine
-    }
-    else {
-        recordError("Expected ';', '=', or ',' after variable name");
-        skipToSemicolon();
+    while (match(p, "^")) {
+        parseBitwiseAndExpression(p);
     }
 }
 
-void parseIdList() {
-    if (!matchType(IDENTIFIER)) {
-        recordError("Missing variable name in the list");
-        return;
-    }
+void parseBitwiseAndExpression(Parser* p) {
+    parseEqualityExpression(p);
     
-    if (match(OPERATION, "=")) {
-        parseExpr();
+    while (match(p, "&")) {
+        parseEqualityExpression(p);
     }
+}
+
+void parseEqualityExpression(Parser* p) {
+    parseRelationalExpression(p);
     
-    while (match(DELIMITER, ",")) {
-        if (!matchType(IDENTIFIER)) {
-            recordError("Missing variable name after ','");
-            return;
-        }
-        if (match(OPERATION, "=")) {
-            parseExpr();
-        }
+    while (match(p, "==") || match(p, "!=")) {
+        parseRelationalExpression(p);
     }
 }
 
-void parseAssStmt() {
-    if (!matchType(IDENTIFIER)) {
-        recordError("Missing variable name");
-        skipToSemicolon();
-        return;
-    }
+void parseRelationalExpression(Parser* p) {
+    parseAdditiveExpression(p);
     
-    // Check for assignment operators
-    if (!(check(OPERATION, "=") || check(OPERATION, "+=") || check(OPERATION, "-=") ||
-          check(OPERATION, "*=") || check(OPERATION, "/=") || check(OPERATION, "%="))) {
-        recordError("Missing '=' for assignment");
-        skipToSemicolon();
-        return;
+    while (match(p, "<") || match(p, ">") || match(p, "<=") || match(p, ">=")) {
+        parseAdditiveExpression(p);
     }
+}
+
+void parseAdditiveExpression(Parser* p) {
+    parseTerm(p);
     
-    // Consume the assignment operator
-    advance();
+    while (match(p, "+") || match(p, "-")) {
+        parseTerm(p);
+    }
+}
+
+void parseTerm(Parser* p) {
+    parseUnaryExpression(p);
     
-    parseExpr();
-    
-    if (!match(DELIMITER, ";")) {
-        recordError("Missing ';' at the end of this line");
-        skipToSemicolon();
+    while (match(p, "*") || match(p, "/") || match(p, "%") || match(p, "//")) {
+        parseUnaryExpression(p);
     }
 }
 
-void parseConditionalStmt() {
-    if (match(KEYWORDS, "do")) {
-        // Handle 'if' that might be classified as IDENTIFIER
-        bool matched_if = false;
-        if (match(KEYWORDS, "if")) {
-            matched_if = true;
-        } else if (current_token != NULL && current_token->type == IDENTIFIER && 
-                   strcmp(current_token->lexeme, "if") == 0) {
-            advance();
-            matched_if = true;
-        }
-        
-        if (!matched_if) {
-            recordError("Missing 'if' after 'do'");
-            skipToSemicolon();
-            return;
-        }
-        
-        if (!match(DELIMITER, "(")) {
-            recordError("Missing '(' after 'if'");
-            skipToSemicolon();
-            return;
-        }
-        
-        parseExpr();
-        
-        if (!match(DELIMITER, ")")) {
-            recordError("Missing ')' after condition");
-            // Don't skip, try to continue with block
-        }
-        
-        if (check(DELIMITER, "{")) {
-            parseBlock();
-        } else {
-            parseStatement();
-        }
-        
-        if (match(KEYWORDS, "then")) {
-            if (!match(KEYWORDS, "do")) {
-                recordError("Missing 'do' after 'then'");
-            }
-            
-            if (check(DELIMITER, "{")) {
-                parseBlock();
-            } else {
-                parseStatement();
-            }
-        }
-    }
-    else if (match(KEYWORDS, "compare")) {
-        parseExpr();
-        
-        if (!match(DELIMITER, "{")) {
-            recordError("Missing '{' after compare");
-            return;
-        }
-        
-        while (match(KEYWORDS, "what")) {
-            if (!match(KEYWORDS, "if")) {
-                recordError("Missing 'if' after 'what'");
-                continue;
-            }
-            
-            parseExpr();
-            
-            if (!match(DELIMITER, ":")) {
-                recordError("Missing ':' after case value");
-            }
-            
-            while (current_token != NULL && !check(KEYWORDS, "break") && 
-                   !check(KEYWORDS, "what") && !check(KEYWORDS, "then") &&
-                   !check(DELIMITER, "}")) {
-                parseStatement();
-            }
-            
-            if (!match(KEYWORDS, "break")) {
-                recordError("Missing 'break' at end of case");
-            }
-            if (!match(DELIMITER, ";")) {
-                recordError("Missing ';' after 'break'");
-            }
-        }
-        
-        if (match(KEYWORDS, "then")) {
-            if (!match(KEYWORDS, "do")) {
-                recordError("Missing 'do' after 'then'");
-            }
-            if (!match(DELIMITER, ":")) {
-                recordError("Missing ':' after 'then do'");
-            }
-            
-            while (current_token != NULL && !check(DELIMITER, "}")) {
-                parseStatement();
-            }
-        }
-        
-        if (!match(DELIMITER, "}")) {
-            recordError("Missing '}' at end of compare");
-        }
-    }
-    // Handle standalone 'if' (in case it's classified as IDENTIFIER)
-    else if (current_token != NULL && current_token->type == IDENTIFIER && 
-             strcmp(current_token->lexeme, "if") == 0) {
-        // This is 'if' without 'do', treat as error or allow it
-        recordError("Found 'if' without 'do' before it");
-        advance();
-        
-        if (!match(DELIMITER, "(")) {
-            recordError("Missing '(' after 'if'");
-            skipToSemicolon();
-            return;
-        }
-        
-        parseExpr();
-        
-        if (!match(DELIMITER, ")")) {
-            recordError("Missing ')' after condition");
-        }
-        
-        if (check(DELIMITER, "{")) {
-            parseBlock();
-        } else {
-            parseStatement();
-        }
-    }
-}
-
-void parseIterativeStmt() {
-    if (match(KEYWORDS, "continue")) {
-        if (!match(KEYWORDS, "until")) {
-            recordError("Missing 'until' after 'continue'");
-            skipToSemicolon();
-            return;
-        }
-        
-        if (!match(DELIMITER, "(")) {
-            recordError("Missing '(' after 'until'");
-            skipToSemicolon();
-            return;
-        }
-        
-        parseExpr();
-        
-        if (match(DELIMITER, ";")) {
-            parseExpr();
-            
-            if (!match(DELIMITER, ";")) {
-                recordError("Missing ';' in loop");
-            }
-            
-            parseExpr();
-        }
-        
-        if (!match(DELIMITER, ")")) {
-            recordError("Missing ')' after loop condition");
-        }
-        
-        if (check(DELIMITER, "{")) {
-            parseBlock();
-        } else {
-            parseStatement();
-        }
-    }
-    else if (match(KEYWORDS, "stop")) {
-        if (!match(KEYWORDS, "when")) {
-            recordError("Missing 'when' after 'stop'");
-            skipToSemicolon();
-            return;
-        }
-        
-        if (!match(DELIMITER, "(")) {
-            recordError("Missing '(' after 'when'");
-            skipToSemicolon();
-            return;
-        }
-        
-        parseExpr();
-        
-        if (!match(DELIMITER, ")")) {
-            recordError("Missing ')' after condition");
-        }
-        
-        if (check(DELIMITER, "{")) {
-            parseBlock();
-        } else {
-            parseStatement();
-        }
-    }
-}
-
-void parseOutputStmt() {
-    if (!match(KEYWORDS, "display")) {
-        recordError("Missing 'display' keyword");
-        skipToSemicolon();
-        return;
-    }
-    
-    parseExprList();
-    
-    if (!match(DELIMITER, ";")) {
-        recordError("Missing ';' at the end of display");
-        skipToSemicolon();
-    }
-}
-
-void parseInputStmt() {
-    if (!match(KEYWORDS, "put")) {
-        recordError("Missing 'put' keyword");
-        skipToSemicolon();
-        return;
-    }
-    
-    if (!matchType(IDENTIFIER)) {
-        recordError("Missing variable name after 'put'");
-        skipToSemicolon();
-        return;
-    }
-    
-    if (!match(DELIMITER, ";")) {
-        recordError("Missing ';' at the end of put");
-        skipToSemicolon();
-    }
-}
-
-void parseBreakStmt() {
-    if (match(KEYWORDS, "break") || match(KEYWORDS, "back")) {
-        if (!match(DELIMITER, ";")) {
-            recordError("Missing ';' after break/back");
-            skipToSemicolon();
-        }
-    }
-}
-
-void parseExprList() {
-    parseExpr();
-    
-    while (match(DELIMITER, ",")) {
-        parseExpr();
-    }
-}
-
-void parseExpr() {
-    parseLogicalOrExpr();
-}
-
-void parseLogicalOrExpr() {
-    parseLogicalAndExpr();
-    while (match(OPERATION, "||")) {
-        parseLogicalAndExpr();
-    }
-}
-
-void parseLogicalAndExpr() {
-    parseEqualityExpr();
-    while (match(OPERATION, "&&")) {
-        parseEqualityExpr();
-    }
-}
-
-void parseEqualityExpr() {
-    parseRelationalExpr();
-    while (match(OPERATION, "==") || match(OPERATION, "!=")) {
-        parseRelationalExpr();
-    }
-}
-
-void parseRelationalExpr() {
-    parseAdditiveExpr();
-    while (match(OPERATION, "<") || match(OPERATION, ">") || 
-           match(OPERATION, "<=") || match(OPERATION, ">=")) {
-        parseAdditiveExpr();
-    }
-}
-
-void parseAdditiveExpr() {
-    parseMultiplicativeExpr();
-    while (match(OPERATION, "+") || match(OPERATION, "-")) {
-        parseMultiplicativeExpr();
-    }
-}
-
-void parseMultiplicativeExpr() {
-    parseUnaryExpr();
-    while (match(OPERATION, "*") || match(OPERATION, "/") || match(OPERATION, "%")) {
-        parseUnaryExpr();
-    }
-}
-
-void parseUnaryExpr() {
-    if (match(OPERATION, "+") || match(OPERATION, "-") || 
-        match(OPERATION, "!") || match(OPERATION, "++") || match(OPERATION, "--")) {
-        parseUnaryExpr();
+void parseUnaryExpression(Parser* p) {
+    if (match(p, "+") || match(p, "-") || match(p, "!") || 
+        match(p, "++") || match(p, "--")) {
+        parseUnaryExpression(p);
     } else {
-        parsePostfixExpr();
+        parsePostfixExpression(p);
     }
 }
 
-void parsePostfixExpr() {
-    parsePrimaryExpr();
-    while (match(OPERATION, "++") || match(OPERATION, "--")) {
-        // Postfix operators handled
+void parsePostfixExpression(Parser* p) {
+    parseFactor(p);
+    
+    while (match(p, "++") || match(p, "--")) {
+        // Continue
     }
 }
 
-void parsePrimaryExpr() {
-    if (matchType(IDENTIFIER)) {
+void parseFactor(Parser* p) {
+    if (matchType(p, IDENTIFIER) || matchType(p, CONSTANT) || 
+        matchType(p, STRING_LITERAL) || matchType(p, CHAR_LITERAL) ||
+        match(p, "true") || match(p, "false")) {
         return;
-    }
-    else if (matchType(CONSTANT)) {
-        return;
-    }
-    else if (checkType(RESERVED_WORDS)) {
-        advance();
-        return;
-    }
-    else if (match(DELIMITER, "(")) {
-        parseExpr();
-        if (!match(DELIMITER, ")")) {
-            recordError("Missing ')' in expression");
+    } else if (match(p, "(")) {
+        parseExpression(p);
+        if (!match(p, ")")) {
+            reportError(p, "Expected ')' after expression");
         }
-        return;
+    } else {
+        reportError(p, "Expected expression");
+        synchronize(p);
     }
-    else {
-        recordError("Invalid expression");
-        // Try to recover
-        advance();
+}
+
+void parseExpressionList(Parser* p) {
+    fprintf(p->output, "--- Parsing EXPRESSION LIST ---\n");
+    parseExpression(p);
+    
+    while (match(p, ",")) {
+        parseExpression(p);
     }
 }
