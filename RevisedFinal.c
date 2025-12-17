@@ -273,7 +273,7 @@ enum States {
     STATE_D, STATE_DA, STATE_DAT, STATE_DATE,
     STATE_DI, STATE_DIS, STATE_DISP, STATE_DISPL, STATE_DISPLA, STATE_DISPLAY,
     STATE_DO,
-    STATE_E, STATE_EX, STATE_EXC, STATE_EXCL, STATE_EXCLU, STATE_EXCLUS,
+    STATE_E, STATE_EN, STATE_END, STATE_EX, STATE_EXC, STATE_EXCL, STATE_EXCLU, STATE_EXCLUS,
     STATE_EXCLUSI, STATE_EXCLUSIV, STATE_EXCLUSIVE,
     STATE_F, STATE_FL, STATE_FLO, STATE_FLOA, STATE_FLOAT,
     STATE_FU, STATE_FUN, STATE_FUNC,
@@ -411,6 +411,7 @@ const char* check_keyword_or_reserved(const char* word) {
             // --- exclusive, exit ---
             case STATE_E:
                 if (ch == 'x') state = STATE_EX;
+                else if (ch == 'n') state = STATE_EN;
                 else return "IDENTIFIER";
                 break;
             case STATE_EX:
@@ -418,6 +419,7 @@ const char* check_keyword_or_reserved(const char* word) {
                 else if (ch == 'i') state = STATE_EXI;
                 else return "IDENTIFIER";
                 break;
+            case STATE_EN: if (ch == 'd') state = STATE_END; else return "IDENTIFIER"; break;
             case STATE_EXC: if (ch == 'l') state = STATE_EXCL; else return "IDENTIFIER"; break;
             case STATE_EXCL: if (ch == 'u') state = STATE_EXCLU; else return "IDENTIFIER"; break;
             case STATE_EXCLU: if (ch == 's') state = STATE_EXCLUS; else return "IDENTIFIER"; break;
@@ -600,6 +602,9 @@ const char* check_keyword_or_reserved(const char* word) {
         case STATE_THIS: case STATE_TIME: case STATE_TIMESTAMP: case STATE_TRY:
         case STATE_VAR: case STATE_WHAT: case STATE_WHEN: case STATE_WHILE: case STATE_THEN:
             return "KEYWORD";
+
+        case STATE_END:
+            return "NOISE_WORD";
         
         // Reserved Words
         case STATE_TRUE: case STATE_FALSE: case STATE_EXIT:
@@ -905,6 +910,9 @@ void lexicalAnalyzer(char* word, struct Node** head, int line, int column) {
                     insertAtEnd(head, KEYWORDS, lexeme, line, start_col);
                 } else if (strncmp(keyword_result, "RESERVED_WORD", 14) == 0){
                     insertAtEnd(head, RESERVED_WORDS, lexeme, line, start_col);
+                }
+                else if (strncmp(keyword_result, "NOISE_WORD", 10) == 0){
+                    insertAtEnd(head, NOISE_WORDS, lexeme, line, start_col);
                 }
                 else {
                     // Check if it's a valid identifier
